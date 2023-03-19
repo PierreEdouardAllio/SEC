@@ -32,9 +32,10 @@
 //WiFi Configuration //
 #define EXAMPLE_ESP_WIFI_SSID      CONFIG_ESP_WIFI_SSID
 #define EXAMPLE_ESP_WIFI_PASS      CONFIG_ESP_WIFI_PASSWORD
-#define EXAMPLE_ESP_MAXIMUM_RETRY  3
+#define EXAMPLE_ESP_MAXIMUM_RETRY  CONFIG_ESP_MAX_RETRY
 //SNTP Configuration//
-#define CURRENT_YEAR 2023
+#define CURRENT_YEAR 	CONFIG_CURRENT_YEAR
+#define NTP_SERVER_NAME CONFIG_NTP_SERV_NAME
 //All types of security protocols used to connect to a WiFi network//
 #if CONFIG_ESP_WIFI_AUTH_OPEN
 #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_OPEN
@@ -115,7 +116,7 @@ void WiFi_Connect_SNTP(void)
 	ESP_LOGI(TAG, "Successfully connected to WiFi network");
     //11-Initialize the SNTP service//
 	sntp_setoperatingmode(SNTP_OPMODE_POLL);
-	sntp_setservername(0, "time.google.com");
+	sntp_setservername(0, NTP_SERVER_NAME);
 	//12-Connect to the SNTP service//
 	sntp_init();
 	ESP_LOGI(TAG, "Connected to NTP server");
