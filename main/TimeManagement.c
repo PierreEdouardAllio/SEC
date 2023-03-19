@@ -25,7 +25,7 @@
 #include "apps/sntp/sntp.h"
 #include "driver/rtc_io.h"
 #include "rtc.h"
-
+#include "esp_sleep.h"
 //###################################################################################################
 //#######################  					VARIABLES 					 ############################
 //###################################################################################################
@@ -36,6 +36,9 @@
 //SNTP Configuration//
 #define CURRENT_YEAR 	CONFIG_CURRENT_YEAR
 #define NTP_SERVER_NAME CONFIG_NTP_SERV_NAME
+//Sleep Configuration//
+#define WAKEUP_BUTTON CONFIG_WAKEUP_BUT
+#define WAKEUP_TIME CONFIG_WAKEUP_TIME
 //All types of security protocols used to connect to a WiFi network//
 #if CONFIG_ESP_WIFI_AUTH_OPEN
 #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_OPEN
@@ -64,6 +67,7 @@ time_t currenttime;
 //FreeRTOS variables//
 TaskHandle_t xWiFi_Connect_SNTP=NULL;
 TaskHandle_t xGet_RTC_Time=NULL;
+TaskHandle_t xSleep_Mode=NULL;
 //###################################################################################################
 //#######################  					FONCTIONS 					 ############################
 //###################################################################################################
@@ -153,16 +157,26 @@ void WiFi_Connect_SNTP(void)
  */
 void Get_RTC_Time(void)
 {
-	//Calling time() is necessary in order to get the current RTC time//
-	while(1)
-	{
-		//Get current RTC time in time_t//
-		time(&currenttime);
-		//Transform RTC time into tm struct//
-		localtime_r(&currenttime,&timedata);
-		//Display (https://www.tutorialspoint.com/c_standard_library/time_h.htm)//
-		ESP_LOGI(TAG,"Time : %d : %d : %d",timedata.tm_hour,timedata.tm_min,timedata.tm_sec);
-		ESP_LOGI(TAG,"Date : %d : %d : %d",timedata.tm_mday,1+timedata.tm_mon,1900+timedata.tm_year);
-		vTaskDelay(1000/portTICK_PERIOD_MS);
-	}
+	//Get current RTC time in time_t//
+	time(&currenttime);
+	//Transform RTC time into tm struct//
+	localtime_r(&currenttime,&timedata);
+	//Display (https://www.tutorialspoint.com/c_standard_library/time_h.htm)//
+	ESP_LOGI(TAG,"Time : %d : %d : %d",timedata.tm_hour,timedata.tm_min,timedata.tm_sec);
+	ESP_LOGI(TAG,"Date : %d : %d : %d",timedata.tm_mday,1+timedata.tm_mon,1900+timedata.tm_year);
+	vTaskSuspend(xGet_RTC_Time);
+}
+
+void Sleep_Mode(void)
+{
+	ESP_LOGI(TAG,"Going into sleep mode...");
+	//Enable wakeups//
+	esp_sleep_enable_timer_wakeup(WAKEUP_TIME*1000*1000);
+	gpio_wakeup_enable(WAKEUP_BUTTON, GPIO_INTR_LOW_LEVEL);
+	esp_sleep_enable_gpio_wakeup();
+	//Activate sleep mode//
+	esp_light_sleep_start();
+	esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+	ESP_LOGI(TAG,"Sleep mode deactivated");
+	vTaskSuspend(xSleep_Mode);
 }

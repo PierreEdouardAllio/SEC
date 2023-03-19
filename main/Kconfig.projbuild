@@ -57,7 +57,18 @@ menu "Time_Management_Configuration"
 		help
 			Current year in order to check synchronization. 
 
-	
+	config WAKEUP_BUT
+		int "Wakeup Button"
+		default 2
+		help 
+			Button that needs to be pressed in order to wakeup system.
+			
+	config WAKEUP_TIME
+		int "Wakeup Time"
+		default 10
+		help 
+			Time elapsed for wakeup in seconds.	
+					
 endmenu
 			
 			
