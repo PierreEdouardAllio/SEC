@@ -3,6 +3,8 @@
 #include "lvgl_helpers.h"
 #include "esp_timer.h"
 #include "GUI.h"
+#include "TimeManagement.h"
+#include "time.h"
 
 #define LV_TICK_PERIOD_MS 1
 
@@ -12,20 +14,25 @@ static void lv_tick_task(void *arg) {
 }
 // Declare the images
 LV_IMG_DECLARE(watchface_background);
-LV_IMG_DECLARE(hours_arm);
-LV_IMG_DECLARE(minutes_arm);
-LV_IMG_DECLARE(seconds_arm);
+LV_IMG_DECLARE(watch_background);
+LV_IMG_DECLARE(hours_hand);
+LV_IMG_DECLARE(minutes_hand);
+LV_IMG_DECLARE(seconds_hand);
+LV_IMG_DECLARE(compass_background);
+LV_IMG_DECLARE(compass_cross);
+LV_IMG_DECLARE(health_background);
+LV_IMG_DECLARE(plain_background);
 
-uint8_t hour = 2;
-uint8_t minute = 48;
-double second = 29.;
 int16_t angle_hour;
 int16_t angle_minute;
 double angle_second;
 
+
+extern struct tm timedata;
+
 // Create the images pointers
 lv_obj_t * ui_watch_face, * ui_hours, * ui_minutes, * ui_seconds;
-lv_obj_t * calendar_background, * health_background, * compass_background, * ble_background, * raw_data_background;
+lv_obj_t * calendar_bg, * health_bg, * compass_bg, * ble_bg, * raw_data_bg;
 lv_obj_t * main_screen, * calendar_screen, * health_screen, * compass_screen, * ble_screen, *raw_data_screen;
 lv_obj_t * label_health_title;
 lv_obj_t * label_compass_title;
@@ -51,35 +58,39 @@ void create_GUI_widgets(void)
 	ui_minutes = lv_img_create(main_screen, NULL);
 	ui_seconds = lv_img_create(main_screen, NULL);
 	// Set the source for every image and change their pivoting points
-	lv_img_set_src(ui_watch_face, &watchface_background);
+	//lv_img_set_src(ui_watch_face, &watchface_background);
+	lv_img_set_src(ui_watch_face, &watch_background);
 	lv_obj_align(ui_watch_face, NULL, LV_ALIGN_CENTER, 0, 0);
 
-	lv_img_set_src(ui_hours, &hours_arm);
+	//lv_img_set_src(ui_hours, &hours_arm);
+	lv_img_set_src(ui_hours, &hours_hand);
 	lv_obj_align(ui_hours, NULL, LV_ALIGN_CENTER, 0, -20);
-	lv_img_set_pivot(ui_hours, 32, 72);
+	lv_img_set_pivot(ui_hours, 10, 68);
 
-	lv_img_set_src(ui_minutes, &minutes_arm);
+	//lv_img_set_src(ui_minutes, &minutes_arm);
+	lv_img_set_src(ui_minutes, &minutes_hand);
 	lv_obj_align(ui_minutes, NULL, LV_ALIGN_CENTER, 0, -45);
-	lv_img_set_pivot(ui_minutes, 4, 100);
+	lv_img_set_pivot(ui_minutes, 10, 101);
 
-	lv_img_set_src(ui_seconds, &seconds_arm);
+	//lv_img_set_src(ui_seconds, &seconds_arm);
+	lv_img_set_src(ui_seconds, &seconds_hand);
 	lv_obj_align(ui_seconds, NULL, LV_ALIGN_CENTER, 0, -46);
-	lv_img_set_pivot(ui_seconds, 4, 105);
+	lv_img_set_pivot(ui_seconds, 10, 116);
 
 
-	angle_hour = 10 * (hour % 12) * 360 / 12;
-	angle_minute = 10 * minute * 360 / 60;
-	angle_second = 10 * second * 360 / 60;
-	lv_img_set_angle(ui_seconds, angle_second);
-	lv_img_set_angle(ui_minutes, angle_minute);
-	lv_img_set_angle(ui_hours, angle_hour);
+	//angle_hour = 10 * (hour % 12) * 360 / 12;
+	//angle_minute = 10 * minute * 360 / 60;
+	//angle_second = 10 * second * 360 / 60;
+	//lv_img_set_angle(ui_seconds, angle_second);
+	//lv_img_set_angle(ui_minutes, angle_minute);
+	//lv_img_set_angle(ui_hours, angle_hour);
 
 	// *********************************************
 	// **   Create the calendar screen objects    **
 	// *********************************************
-	calendar_background = lv_img_create(calendar_screen, NULL);
-	lv_img_set_src(calendar_background, &watchface_background);
-	lv_obj_align(calendar_background, NULL, LV_ALIGN_CENTER, 0, 0);
+	calendar_bg = lv_img_create(calendar_screen, NULL);
+	lv_img_set_src(calendar_bg, &plain_background);
+	lv_obj_align(calendar_bg, NULL, LV_ALIGN_CENTER, 0, 0);
 
 	lv_obj_t  * calendar = lv_calendar_create(calendar_screen, NULL);
 	lv_obj_set_size(calendar, 169, 169);
@@ -97,9 +108,9 @@ void create_GUI_widgets(void)
 	// *********************************************
 	// **    Create the health screen objects     **
 	// *********************************************
-	health_background = lv_img_create(health_screen, NULL);
-	lv_img_set_src(health_background, &watchface_background);
-	lv_obj_align(health_background, NULL, LV_ALIGN_CENTER, 0, 0);
+	health_bg = lv_img_create(health_screen, NULL);
+	lv_img_set_src(health_bg, &health_background);
+	lv_obj_align(health_bg, NULL, LV_ALIGN_CENTER, 0, 0);
 
 	label_health_title = lv_label_create(health_screen, NULL);
 	lv_label_set_recolor(label_health_title, 1);
@@ -110,9 +121,9 @@ void create_GUI_widgets(void)
 	// *********************************************
 	// **   Create the compass screen objects     **
 	// *********************************************
-	compass_background = lv_img_create(compass_screen, NULL);
-	lv_img_set_src(compass_background, &watchface_background);
-	lv_obj_align(compass_background, NULL, LV_ALIGN_CENTER, 0, 0);
+	compass_bg = lv_img_create(compass_screen, NULL);
+	lv_img_set_src(compass_bg, &compass_background);
+	lv_obj_align(compass_bg, NULL, LV_ALIGN_CENTER, 0, 0);
 
 	label_compass_title = lv_label_create(compass_screen, NULL);
 	lv_label_set_recolor(label_compass_title, 1);
@@ -123,9 +134,9 @@ void create_GUI_widgets(void)
 	// *********************************************
 	// **     Create the ble screen objects       **
 	// *********************************************
-	ble_background = lv_img_create(ble_screen, NULL);
-	lv_img_set_src(ble_background, &watchface_background);
-	lv_obj_align(ble_background, NULL, LV_ALIGN_CENTER, 0, 0);
+	ble_bg = lv_img_create(ble_screen, NULL);
+	lv_img_set_src(ble_bg, &plain_background);
+	lv_obj_align(ble_bg, NULL, LV_ALIGN_CENTER, 0, 0);
 
 	label_ble_title = lv_label_create(ble_screen, NULL);
 	lv_label_set_recolor(label_ble_title, 1);
@@ -136,16 +147,14 @@ void create_GUI_widgets(void)
 	// *********************************************
 	// **     Create the ble screen objects       **
 	// *********************************************
-	raw_data_background = lv_img_create(raw_data_screen, NULL);
-	lv_img_set_src(raw_data_background, &watchface_background);
-	lv_obj_align(raw_data_background, NULL, LV_ALIGN_CENTER, 0, 0);
+	raw_data_bg = lv_img_create(raw_data_screen, NULL);
+	lv_img_set_src(raw_data_bg, &plain_background);
+	lv_obj_align(raw_data_bg, NULL, LV_ALIGN_CENTER, 0, 0);
 
 	label_raw_data_title = lv_label_create(raw_data_screen, NULL);
 	lv_label_set_recolor(label_raw_data_title, 1);
 	lv_label_set_text(label_raw_data_title, "#ffffff Raw data#");
 	lv_obj_align(label_raw_data_title, NULL, LV_ALIGN_CENTER, 0, -100);
-
-
 
 	lv_scr_load(main_screen);
 	lv_task_handler();
@@ -193,14 +202,20 @@ void ui_update_time()
 	//{
 		//angle_hour = 10 * (hour % 12) * 360 / 12;
 		//angle_minute = 10 * minute * 360 / 60;
-		angle_second = 10 * second * 360 / 60;
-		lv_img_set_angle(ui_seconds, angle_second);
+		//angle_second = 10 * second * 360 / 60;
+		//lv_img_set_angle(ui_seconds, angle_second);
 		//lv_img_set_angle(ui_minutes, angle_minute);
 		//lv_img_set_angle(ui_hours, angle_hour);
 		//if (pdTRUE == xSemaphoreTake(xGuiSemaphore, portMAX_DELAY)) {
 			//create_lvgl_first_application();
-		if (second >= 60) second = 0;
-		else second++;
+		//if (second >= 60) second = 0;
+		//else second++;
+		angle_hour = 10 * (timedata.tm_hour % 12) * 360 / 12;
+		angle_minute = 10 * timedata.tm_min * 360 / 60;
+		angle_second = 10 * timedata.tm_sec * 360 / 60;
+		lv_img_set_angle(ui_seconds, angle_second);
+		lv_img_set_angle(ui_minutes, angle_minute);
+		lv_img_set_angle(ui_hours, angle_hour);
 			//ESP_LOGI(TAG2, "supposed to do my job");
 			//xSemaphoreGive(xGuiSemaphore);
 		//vTaskDelay(10 / portTICK_PERIOD_MS);
