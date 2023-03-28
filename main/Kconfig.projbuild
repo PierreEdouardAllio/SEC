@@ -15,7 +15,7 @@ menu "Time_Management_Configuration"
 
     config ESP_MAX_RETRY
         int "Maximum Retry"
-        default 5
+        default 15
         help
             Set the Maximum retry to avoid station reconnecting to the AP unlimited when the AP is really inexistent.
 
@@ -57,15 +57,25 @@ menu "Time_Management_Configuration"
 		help
 			Current year in order to check synchronization. 
 
-	config WAKEUP_BUT
-		int "Wakeup Button"
-		default 2
+	config OK_BUT
+		int "IHM OK Button"
+		default 36
 		help 
 			Button that needs to be pressed in order to wakeup system.
-			
+	config NEXT_BUT
+		int "IHM Next Button"
+		default 34
+		help 
+			Button that needs to be pressed in order to wakeup system.
+	config PREV_BUT
+		int "IHM Prev Button"
+		default 35
+		help 
+			Button that needs to be pressed in order to wakeup system.
+		
 	config WAKEUP_TIME
 		int "Wakeup Time"
-		default 10
+		default 1
 		help 
 			Time elapsed for wakeup in seconds.	
 					

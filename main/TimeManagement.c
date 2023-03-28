@@ -23,9 +23,8 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 #include "apps/sntp/sntp.h"
-#include "driver/rtc_io.h"
-#include "rtc.h"
 #include "esp_sleep.h"
+#include "driver/rtc_io.h"
 //###################################################################################################
 //#######################  					VARIABLES 					 ############################
 //###################################################################################################
@@ -37,7 +36,9 @@
 #define CURRENT_YEAR 	CONFIG_CURRENT_YEAR
 #define NTP_SERVER_NAME CONFIG_NTP_SERV_NAME
 //Sleep Configuration//
-#define WAKEUP_BUTTON CONFIG_WAKEUP_BUT
+#define IHM_OK_BUTTON CONFIG_OK_BUT
+#define IHM_NEXT_BUTTON CONFIG_NEXT_BUT
+#define IHM_PREV_BUTTON CONFIG_PREV_BUT
 #define WAKEUP_TIME CONFIG_WAKEUP_TIME
 //All types of security protocols used to connect to a WiFi network//
 #if CONFIG_ESP_WIFI_AUTH_OPEN
@@ -58,7 +59,7 @@
 #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WAPI_PSK
 #endif
 //Logging variables//
-static const char *TAG = "wifi station";
+static const char *TAG = "RTC";
 //WiFi connection related variables//
 int Number_Tries = 0;
 //Time global variables//
@@ -66,30 +67,43 @@ struct tm timedata;
 time_t currenttime;
 //FreeRTOS variables//
 TaskHandle_t xWiFi_Connect_SNTP=NULL;
-TaskHandle_t xGet_RTC_Time=NULL;
 //###################################################################################################
 //#######################  					FONCTIONS 					 ############################
 //###################################################################################################
+/*
+ * Initializes the timezone variable in the ESP environement
+ */
+void RTC_Init(void)
+{
+	//Changement de la timezone//
+	setenv("TZ", "UTC-2", 1);
+	tzset();
+}
+
 /*
  * This task connects to a NTP server using the WiFi network previously
  * configured in the configuration menu.
  * This task connects to the WiFi network, retrieves the time from the NTP server,
  * synchronizes the RTC to the time retrieved and disconnects from WiFi network.
  */
+void WiFi_Init(void)
+{
+	//1-Initialize NVS//
+	nvs_flash_init();
+	//2-Initialize TCP-IP//
+	esp_netif_init();
+	esp_event_loop_create_default();
+	ESP_LOGI(TAG, "WiFi prerequisites activated");
+	//3-Configure WiFi Station//
+	esp_netif_create_default_wifi_sta();
+}
+
 void WiFi_Connect_SNTP(void)
 {
 	while(1)
 	{
-	   //1-Initialize NVS//
-		nvs_flash_init();
-		//2-Initialize TCP-IP//
-		esp_netif_init();
-		esp_event_loop_create_default();
-		ESP_LOGI(TAG, "WiFi prerequisites activated");
-		//3-Configure WiFi Station//
-		esp_netif_create_default_wifi_sta();
-		wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 		//4-Initialize WiFi//
+		wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 		esp_wifi_init(&cfg);
 		//5-Configure WiFi//
 		wifi_config_t wifi_config = {
@@ -111,12 +125,12 @@ void WiFi_Connect_SNTP(void)
 		{
 			Number_Tries++;
 			ESP_LOGI(TAG, "Connecting to WiFi network please wait...");
-		}
-		//7-Suspend Task Unable to Connect to WiFi//
-		if(Number_Tries==EXAMPLE_ESP_MAXIMUM_RETRY)
-		{
-			ESP_LOGI(TAG, "Failed to connect to WiFi network -> suspending WiFi task");
-			vTaskSuspend(xWiFi_Connect_SNTP);
+			//7-Suspend Task Unable to Connect to WiFi//
+			if(Number_Tries==EXAMPLE_ESP_MAXIMUM_RETRY)
+			{
+				ESP_LOGI(TAG, "Failed to connect to WiFi network -> suspending WiFi task");
+				vTaskSuspend(xWiFi_Connect_SNTP);
+			}
 		}
 		ESP_LOGI(TAG, "Successfully connected to WiFi network");
 		//11-Initialize the SNTP service//
@@ -140,6 +154,12 @@ void WiFi_Connect_SNTP(void)
 			//Getting RTC time//
 			time(&now);
 			localtime_r(&now, &timeinfo);
+			Number_Tries++;
+			if(Number_Tries==EXAMPLE_ESP_MAXIMUM_RETRY)
+			{
+				ESP_LOGI(TAG, "Failed to connect to WiFi network -> suspending WiFi task");
+				vTaskSuspend(xWiFi_Connect_SNTP);
+			}
 		}
 		ESP_LOGI(TAG, "Time has been acquired from SNTP service");
 		//14-Stop WiFi Connection//
@@ -159,17 +179,14 @@ void WiFi_Connect_SNTP(void)
  */
 void Get_RTC_Time(void)
 {
-	while(1)
-	{
-		//Get current RTC time in time_t//
-		time(&currenttime);
-		//Transform RTC time into tm struct//
-		localtime_r(&currenttime,&timedata);
-		//Display (https://www.tutorialspoint.com/c_standard_library/time_h.htm)//
-		ESP_LOGI(TAG,"Time : %d : %d : %d",timedata.tm_hour,timedata.tm_min,timedata.tm_sec);
-		ESP_LOGI(TAG,"Date : %d : %d : %d",timedata.tm_mday,1+timedata.tm_mon,1900+timedata.tm_year);
-		vTaskSuspend(xGet_RTC_Time);
-	}
+
+	//Get current RTC time in time_t//
+	time(&currenttime);
+	//Transform RTC time into tm struct//
+	localtime_r(&currenttime,&timedata);
+	//Display (https://www.tutorialspoint.com/c_standard_library/time_h.htm)//
+	ESP_LOGI(TAG,"Time : %d : %d : %d",timedata.tm_hour,timedata.tm_min,timedata.tm_sec);
+	ESP_LOGI(TAG,"Date : %d : %d : %d",timedata.tm_mday,1+timedata.tm_mon,1900+timedata.tm_year);
 }
 /*
  * This function activates all the wakeup sources and activates light sleep mode.
@@ -179,7 +196,9 @@ void Sleep_Mode(void)
 	ESP_LOGI(TAG,"Going into sleep mode...");
 	//Enable wakeups//
 	esp_sleep_enable_timer_wakeup(WAKEUP_TIME*1000*1000);
-	gpio_wakeup_enable(WAKEUP_BUTTON, GPIO_INTR_LOW_LEVEL);
+	gpio_wakeup_enable(IHM_OK_BUTTON, GPIO_INTR_LOW_LEVEL);
+	gpio_wakeup_enable(IHM_NEXT_BUTTON, GPIO_INTR_LOW_LEVEL);
+	gpio_wakeup_enable(IHM_PREV_BUTTON, GPIO_INTR_LOW_LEVEL);
 	esp_sleep_enable_gpio_wakeup();
 	//Activate sleep mode//
 	esp_light_sleep_start();

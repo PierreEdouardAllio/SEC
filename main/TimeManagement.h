@@ -11,6 +11,8 @@
 #ifndef MAIN_TIMEMANAGEMENT_H_
 #define MAIN_TIMEMANAGEMENT_H_
 
+void RTC_Init(void);
+void WiFi_Init(void);
 void WiFi_Connect_SNTP(void);
 void Get_RTC_Time(void);
 void Sleep_Mode(void);
